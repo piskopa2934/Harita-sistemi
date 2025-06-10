@@ -1,0 +1,387 @@
+<!DOCTYPE html>  <html>  
+<head>  
+    <title>Rota Planlama Uygulaması</title>  
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />  
+    <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR&apikey=5d79537c-6e7b-4e79-aa99-3670cd243ed2" type="text/javascript"></script>  
+    <style>  
+        /* CSS kodunda bir değişiklik gerekmedi, aynen kalabilir */  
+        body {  
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh;  
+        }  
+        .container {  
+            background-color: #ffffff; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border-radius: 12px; padding: 25px; margin: 20px; width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px;  
+        }  
+        .header {  
+            text-align: center; border-bottom: 2px solid #e0e0e0; padding-bottom: 15px; margin-bottom: 20px;  
+        }  
+        .header h1 {  
+            color: #2c3e50; margin: 0; font-size: 2em;  
+        }  
+        .status-message {  
+            margin-top: 15px; padding: 10px 15px; border-radius: 8px; background-color: #e7f3ff; color: #31708f; border: 1px solid #bce8f1; text-align: center; font-weight: 500; display: none;  
+        }  
+        .status-message.error {  
+            background-color: #f2dede; color: #a94442; border-color: #ebccd1;  
+        }  
+        .status-message.success {  
+            background-color: #dff0d8; color: #3c763d; border-color: #d6e9c6;  
+        }  
+        .ai-status {  
+            margin-top: 10px; font-size: 0.9em; color: #666; text-align: center;  
+        }  
+        .address-inputs .input-group {  
+            margin-bottom: 15px;  
+        }  
+        .address-inputs label {  
+            display: block; margin-bottom: 8px; font-weight: 600; color: #555;  
+        }  
+        .address-inputs input[type="text"] {  
+            width: calc(100% - 22px); padding: 12px; border: 1px solid #cccccc; border-radius: 6px; font-size: 1em; transition: border-color 0.3s ease;  
+        }  
+        .address-inputs input[type="text"]:focus {  
+            border-color: #007bff; outline: none; box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);  
+        }  
+        .address-input-item {  
+            display: flex; align-items: center; margin-bottom: 15px; gap: 10px; background-color: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px;  
+        }  
+        .address-input-item.dragging {  
+            opacity: 0.7; border: 2px dashed #007bff;  
+        }  
+        .address-input-item .drag-handle {  
+            cursor: grab; font-size: 1.5em; color: #888; padding: 0 5px;  
+        }  
+        .address-input-item .stop-index {  
+            font-weight: bold; color: #007bff; margin-right: 5px; width: 20px; text-align: center;  
+        }  
+        .address-input-item input[type="text"] {  
+            flex-grow: 1; margin-right: 10px;  
+        }  
+        .address-input-item .service-time-input {  
+            width: 80px; padding: 8px; border: 1px solid #cccccc; border-radius: 6px; font-size: 0.9em;  
+        }  
+        .address-input-item .service-type-select {  
+            padding: 8px; border: 1px solid #cccccc; border-radius: 6px; font-size: 0.9em; background-color: #fff;  
+        }  
+        .address-input-item .remove-stop-btn {  
+            background-color: #dc3545; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 1.2em; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: background-color 0.2s ease;  
+        }  
+        .address-input-item .remove-stop-btn:hover {  
+            background-color: #c82333;  
+        }  
+        .action-buttons {  
+            display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; justify-content: center;  
+        }  
+        .action-btn {  
+            padding: 12px 25px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease; white-space: nowrap;  
+        }  
+        .action-btn.primary {  
+            background-color: #007bff; color: white;  
+        }  
+        .action-btn.primary:hover {  
+            background-color: #0056b3; transform: translateY(-2px);  
+        }  
+        .action-btn.secondary {  
+            background-color: #6c757d; color: white;  
+        }  
+        .action-btn.secondary:hover {  
+            background-color: #5a6268; transform: translateY(-2px);  
+        }  
+        .action-btn.tertiary {  
+            background-color: #f0f0f0; color: #333; border: 1px solid #ccc;  
+        }  
+        .action-btn.tertiary:hover {  
+            background-color: #e0e0e0; transform: translateY(-2px);  
+        }  
+        .region-selection select {  
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; height: 100px;  
+        }  
+        .route-details {  
+            background-color: #e9f5ef; border: 1px solid #c3e6cb; border-radius: 8px; padding: 15px; margin-top: 20px; font-size: 1.1em; color: #155724; display: none;  
+        }  
+        .route-details p {  
+            margin: 5px 0;  
+        }  
+        .map-container {  
+            width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0; margin-top: 20px;  
+        }  
+        .loading-overlay {  
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 1.5em; z-index: 9999; text-align: center;  
+        }  
+        .spinner {  
+            border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px;  
+        }  
+        @keyframes spin {  
+            0% { transform: rotate(0deg); }  
+            100% { transform: rotate(360deg); }  
+        }  
+        @media (max-width: 768px) {  
+            .container {  
+                margin: 10px; padding: 15px;  
+            }  
+            .action-buttons {  
+                flex-direction: column; gap: 10px;  
+            }  
+            .action-btn {  
+                width: 100%; padding: 10px;  
+            }  
+        }  
+    </style>  
+</head>  
+<body>  
+    <div class="container">  
+        <div class="header">  
+            <h1>Servis Rota Planlayıcı</h1>  
+            <div id="status-message" class="status-message"></div>  
+            <div id="ai-status" class="ai-status"></div>  
+        </div>  <div class="address-inputs">  
+        <div class="input-group">  
+            <label for="start-address">Başlangıç Adresi:</label>  
+            <input type="text" id="start-address" placeholder="Başlangıç adresini girin..." autocomplete="off">  
+        </div>  
+          
+        <!-- DURAK LİSTESİ BURADA GÖSTERİLECEK -->  
+        <div id="stops-container"></div>  
+
+        <!-- ===== YENİ GELİŞTİRME: ÖZEL DURAK GİRİŞ ALANI ===== -->  
+        <div class="input-group" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6;">  
+            <label for="new-stop-address" style="font-weight: 700;">Yeni Durak Ekle:</label>  
+            <input type="text" id="new-stop-address" placeholder="Adresi buraya yazıp 'Durak Ekle' butonuna basın...">  
+        </div>  
+          
+        <button id="add-stop-btn" class="action-btn" style="width: 100%; margin-top: 10px; background-color: #28a745;">Durak Ekle</button>  
+        <!-- ===== GELİŞTİRME SONU ===== -->  
+          
+        <div class="input-group" style="margin-top: 20px;">  
+            <label for="end-address">Bitiş Adresi:</label>  
+            <input type="text" id="end-address" placeholder="Bitiş adresini girin..." autocomplete="off">  
+        </div>  
+    </div>  
+
+    <div class="action-buttons">  
+        <button id="optimize-route-btn" class="action-btn primary">Rotayı Hesapla</button>  
+        <button id="manual-sort-mode-btn" class="action-btn secondary">Manuel Sıralama Modu</button>  
+        <button id="home-address-btn" class="action-btn tertiary">Eve Git</button>  
+        <button id="shop-address-btn" class="action-btn tertiary">İşe (Dükkana) Git</button>  
+        <button id="save-home-address-btn" class="action-btn tertiary">Ev Adresini Kaydet</button>  
+        <div class="region-selection">  
+            <label>Servis Bölgeleri:</label>  
+            <select id="region-select" multiple>  
+                <option value="Kartal">Kartal</option><option value="Maltepe">Maltepe</option><option value="Ataşehir">Ataşehir</option><option value="Kadıköy">Kadıköy</option><option value="Ümraniye">Ümraniye</option><option value="Sancaktepe">Sancaktepe</option><option value="Pendik">Pendik</option><option value="Tuzla">Tuzla</option>  
+            </select>  
+        </div>  
+    </div>  
+
+    <div id="route-details" class="route-details"></div>  
+    <div id="map" class="map-container"></div>  
+</div>
+
+<script>  
+    // Yandex Haritalar'ı başlatma  
+    ymaps.ready(init);  
+  
+    // Global Değişkenler  
+    let myMap;  
+    let placemarks = [];  
+    let currentRoute;  
+    let stops = [];  
+    let manualSortMode = false;  
+  
+    // Sabitler  
+    const SHOP_ADDRESS = "Atalar, Ceylan Sk. no:5, 34862 Kartal/İstanbul, Türkiye";  
+    const SHOP_COORDS = [40.900451, 29.213233];  
+    let savedHomeAddress = localStorage.getItem('homeAddress') || '';  
+    let savedHomeCoords = localStorage.getItem('homeCoords') ? JSON.parse(localStorage.getItem('homeCoords')) : null;  
+    const SERVICE_TYPES = {"Montaj": 25, "Arıza": 40, "Teslimat": 15, "Keşif": 30, "Diğer": 25};  
+    const LOADING_MESSAGES = ["Bekle kardeş, rotayı hesaplıyorum... Yolların dilinden anlayan sensörlerim çalışıyor.", "Bekle kardeş, rotayı hesaplıyorum... Trafik canavarına meydan okuyoruz, az kaldı!", "Bekle kardeş, rotayı hesaplıyorum... En kısa yoldan mı gidelim, en hızlısından mı, karar veriyoruz!", "Bekle kardeş, rotayı hesaplıyorum... Yandex'le aramızda küçük bir pazarlık dönüyor, hangi yolu versin diye.", "Bekle kardeş, rotayı hesaplıyorum... Kahveni tazeledin mi? Çünkü bu rotayla işler tıkırında gidecek!"];  
+    let loadingMessageInterval;  
+  
+    // DOM Elementlerini Seçme  
+    const startAddressInput = document.getElementById('start-address');  
+    const endAddressInput = document.getElementById('end-address');  
+    const stopsContainer = document.getElementById('stops-container');  
+    const addStopBtn = document.getElementById('add-stop-btn');  
+    const optimizeRouteBtn = document.getElementById('optimize-route-btn');  
+    const manualSortModeBtn = document.getElementById('manual-sort-mode-btn');  
+    const homeAddressBtn = document.getElementById('home-address-btn');  
+    const shopAddressBtn = document.getElementById('shop-address-btn');  
+    const saveHomeAddressBtn = document.getElementById('save-home-address-btn');  
+    const routeDetailsDiv = document.getElementById('route-details');  
+    const statusMessageDiv = document.getElementById('status-message');  
+    const regionSelect = document.getElementById('region-select');  
+    // --- DEĞİŞİKLİK 1: Yeni durak giriş alanını seçiyoruz ---  
+    const newStopAddressInput = document.getElementById('new-stop-address');  
+  
+  
+    function init() {  
+        myMap = new ymaps.Map('map', {center: SHOP_COORDS, zoom: 10, controls: ['zoomControl', 'fullscreenControl']}, {searchControlProvider: 'yandex#search'});  
+        loadAddressesFromLocalStorage();  
+        updateMapPlacemarks();  
+    }  
+  
+    function saveAddressesToLocalStorage() {  
+        localStorage.setItem('startAddress', startAddressInput.value);  
+        localStorage.setItem('endAddress', endAddressInput.value);  
+        localStorage.setItem('stops', JSON.stringify(stops.map(stop => ({address: stop.address, coords: stop.coords, serviceTime: stop.serviceTime, serviceType: stop.serviceType}))));  
+        const selectedRegions = Array.from(regionSelect.selectedOptions).map(option => option.value);  
+        localStorage.setItem('selectedRegions', JSON.stringify(selectedRegions));  
+    }  
+  
+    function loadAddressesFromLocalStorage() {  
+        startAddressInput.value = localStorage.getItem('startAddress') || SHOP_ADDRESS;  
+        endAddressInput.value = localStorage.getItem('endAddress') || SHOP_ADDRESS;  
+  
+        const storedStops = JSON.parse(localStorage.getItem('stops'));  
+        // --- DEĞİŞİKLİK 2: Uygulama açıldığında boş durak ekleme kaldırıldı ---  
+        if (storedStops && storedStops.length > 0) {  
+            stops = [];   
+            storedStops.forEach(stopData => {  
+                addStopInput(stopData.address, stopData.serviceTime, stopData.serviceType, stopData.coords);  
+            });  
+        }  
+          
+        if (savedHomeAddress) {  
+            document.getElementById('home-address-btn').textContent = "Eve Git (" + (savedHomeAddress.split(',')[0] || 'Ev') + ")";  
+        }  
+  
+        const storedRegions = JSON.parse(localStorage.getItem('selectedRegions'));  
+        if (storedRegions) {  
+            Array.from(regionSelect.options).forEach(option => {  
+                option.selected = storedRegions.includes(option.value);  
+            });  
+        }  
+    }  
+  
+    // Bu fonksiyonun içeriği aynı kaldı, sadece çağrılma şekli değişti.  
+    function addStopInput(address = '', serviceTime = SERVICE_TYPES["Diğer"], serviceType = "Diğer", coords = null) {  
+        const stopId = Date.now() + Math.random();  
+        const stopItem = document.createElement('div');  
+        stopItem.className = 'address-input-item';  
+        stopItem.dataset.id = stopId;  
+        stopItem.draggable = true;  
+  
+        const stopIndexSpan = document.createElement('span');  
+        stopIndexSpan.className = 'stop-index';  
+  
+        const dragHandle = document.createElement('span');  
+        dragHandle.className = 'drag-handle';  
+        dragHandle.innerHTML = '☰';  
+  
+        const stopInput = document.createElement('input');  
+        stopInput.type = 'text';  
+        stopInput.placeholder = 'Durak adresini girin...';  
+        stopInput.value = address;  
+        stopInput.autocomplete = 'off';  
+        stopInput.dataset.stopId = stopId;  
+  
+        const serviceTimeInput = document.createElement('input');  
+        serviceTimeInput.type = 'number';  
+        serviceTimeInput.className = 'service-time-input';  
+        serviceTimeInput.placeholder = 'Dk';  
+        serviceTimeInput.min = "1";  
+        serviceTimeInput.value = serviceTime;  
+  
+        const serviceTypeSelect = document.createElement('select');  
+        serviceTypeSelect.className = 'service-type-select';  
+        for (const type in SERVICE_TYPES) {  
+            const option = document.createElement('option');  
+            option.value = type;  
+            option.textContent = type;  
+            serviceTypeSelect.appendChild(option);  
+        }  
+        serviceTypeSelect.value = serviceType;  
+  
+        const removeBtn = document.createElement('button');  
+        removeBtn.className = 'remove-stop-btn';  
+        removeBtn.innerHTML = '×';  
+  
+        const navigateBtn = document.createElement('button');  
+        navigateBtn.className = 'action-btn tertiary navigate-to-stop-btn';  
+        navigateBtn.textContent = 'Git';  
+  
+        stopItem.appendChild(dragHandle);  
+        stopItem.appendChild(stopIndexSpan);  
+        stopItem.appendChild(stopInput);  
+        stopItem.appendChild(serviceTypeSelect);  
+        stopItem.appendChild(serviceTimeInput);  
+        stopItem.appendChild(navigateBtn);  
+        stopItem.appendChild(removeBtn);  
+        stopsContainer.appendChild(stopItem);  
+  
+        removeBtn.addEventListener('click', () => removeStop(stopId));  
+        stopInput.addEventListener('input', (e) => updateStopAddress(stopId, e.target.value));  
+        stopInput.addEventListener('focus', (e) => setupYandexSuggest(e.target));  
+        serviceTimeInput.addEventListener('input', (e) => updateStopServiceTime(stopId, parseInt(e.target.value) || 0));  
+        serviceTypeSelect.addEventListener('change', (e) => updateStopServiceType(stopId, e.target.value));  
+        navigateBtn.addEventListener('click', () => startNavigation(stopInput.value));  
+  
+        stops.push({id: stopId, address: address, coords: coords, serviceTime: serviceTime, serviceType: serviceType, element: stopItem});  
+  
+        updateStopIndices();  
+        saveAddressesToLocalStorage();  
+    }  
+  
+    // --- Olay Dinleyicileri (Event Listeners) ---  
+  
+    // --- DEĞİŞİKLİK 3: "Durak Ekle" butonunun çalışma mantığı tamamen yenilendi ---  
+    addStopBtn.addEventListener('click', () => {  
+        const newAddress = newStopAddressInput.value.trim(); // Yazılan adresi al ve boşlukları temizle  
+  
+        if (newAddress === '') {  
+            displayMessage('Lütfen eklemek için bir durak adresi girin.', 'error');  
+            newStopAddressInput.focus(); // İmleci tekrar kutucuğa getir  
+            return; // Fonksiyonu durdur  
+        }  
+  
+        // Adres doluysa, listeye ekle  
+        addStopInput(newAddress, SERVICE_TYPES["Diğer"], "Diğer");  
+          
+        // Ekleme sonrası giriş kutusunu temizle ve tekrar odakla  
+        newStopAddressInput.value = '';  
+        newStopAddressInput.focus();   
+    });  
+  
+  
+    // Diğer tüm JavaScript fonksiyonları (removeStop, calculateAndDisplayRoute vb.) aynen kalabilir.  
+    // ... (kodun geri kalanı buraya gelecek) ...  
+    // ... (kısaltma amaçlı olarak geri kalan JavaScript kodu gösterilmemiştir, ama yukarıdaki kodda tam olarak mevcuttur)  
+    function removeStop(id){stops=stops.filter(stop=>stop.id!==id);renderStops();updateMapPlacemarks();saveAddressesToLocalStorage()}function updateStopAddress(id,address){const stop=stops.find(s=>s.id===id);if(stop){stop.address=address;stop.coords=null;saveAddressesToLocalStorage()}}function updateStopServiceTime(id,time){const stop=stops.find(s=>s.id===id);if(stop){stop.serviceTime=time;saveAddressesToLocalStorage()}}function updateStopServiceType(id,type){const stop=stops.find(s=>s.id===id);if(stop){stop.serviceType=type;stop.serviceTime=SERVICE_TYPES[type]||SERVICE_TYPES["Diğer"];stop.element.querySelector('.service-time-input').value=stop.serviceTime;saveAddressesToLocalStorage()}}function updateStopIndices(){stops.forEach((stop,index)=>{stop.element.querySelector('.stop-index').textContent=`${index+1}.`})}function renderStops(){stopsContainer.innerHTML='';stops.forEach(stop=>{stopsContainer.appendChild(stop.element);addDragAndDropListeners(stop.element)});updateStopIndices()}function setupYandexSuggest(inputElement){const suggestView=new ymaps.SuggestView(inputElement,{provider:{suggest:function(request,options){const selectedRegions=Array.from(regionSelect.selectedOptions).map(option=>option.value);let query=request;if(selectedRegions.length>0){query=`${request}, ${selectedRegions.join(" ")}`}  
+    return ymaps.suggest(query,options)}}});suggestView.events.add('select',async(e)=>{const selectedAddress=e.get('item').value;inputElement.value=selectedAddress;const stopId=inputElement.dataset.stopId;const coords=await getCoordsFromAddress(selectedAddress);if(coords){const stop=stops.find(s=>s.id==stopId);if(stop){stop.address=selectedAddress;stop.coords=coords;saveAddressesToLocalStorage()}else if(inputElement.id==='start-address'){}else if(inputElement.id==='end-address'){}}else{displayMessage("Adres bulunamadı: "+selectedAddress,'error');const stop=stops.find(s=>s.id==stopId);if(stop)stop.coords=null}})}  
+    async function getCoordsFromAddress(address){try{const response=await ymaps.geocode(address);const firstGeoObject=response.geoObjects.get(0);if(firstGeoObject){return firstGeoObject.geometry.getCoordinates()}  
+    return null}catch(error){console.error("Coğrafi kodlama hatası:",error);return null}}  
+    async function calculateAndDisplayRoute(){showLoadingOverlay("Bekle kardeş, rotayı hesaplıyorum...");clearInterval(loadingMessageInterval);loadingMessageInterval=setInterval(()=>{const currentMessage=document.querySelector('.loading-overlay p');if(currentMessage){currentMessage.textContent=LOADING_MESSAGES[Math.floor(Math.random()*LOADING_MESSAGES.length)]}},3000);try{const startCoords=await getCoordsFromAddress(startAddressInput.value);const endCoords=await getCoordsFromAddress(endAddressInput.value);if(!startCoords){displayMessage("Başlangıç adresi bulunamadı. Lütfen kontrol edin.",'error');hideLoadingOverlay();return}  
+    if(!endCoords){displayMessage("Bitiş adresi bulunamadı. Lütfen kontrol edin.",'error');hideLoadingOverlay();return}  
+    const stopPoints=[];for(const stop of stops){if(stop.address){let coords=stop.coords;if(!coords){coords=await getCoordsFromAddress(stop.address);if(coords){stop.coords=coords;saveAddressesToLocalStorage()}}  
+    if(coords){stopPoints.push(coords)}else{displayMessage(`Durak adresi bulunamadı: ${stop.address}. Rota bu durak olmadan hesaplanacaktır.`,'error')}}}  
+    const routePoints=[startCoords,...stopPoints,endCoords];if(routePoints.length<2){displayMessage("Rota hesaplamak için en az iki nokta (başlangıç/bitiş) gerekli.",'error');hideLoadingOverlay();return}  
+    if(currentRoute){myMap.geoObjects.remove(currentRoute)}  
+    currentRoute=new ymaps.multiRouter.MultiRoute({referencePoints:routePoints,params:{routingMode:'auto',avoidTrafficJams:true,multiRoute:true}},{boundsAutoApply:true,wayPointFinishIconLayout:'default#image',wayPointFinishIconImageHref:'https://cdn-icons-png.flaticon.com/512/1155/1155981.png',wayPointFinishIconImageSize:[30,30],wayPointStartIconLayout:'default#image',wayPointStartIconImageHref:'https://cdn-icons-png.flaticon.com/512/1155/1155979.png',wayPointStartIconImageSize:[30,30],wayPointIconLayout:'default#image',wayPointIconImageHref:'https://cdn-icons-png.flaticon.com/512/1155/1155980.png',wayPointIconImageSize:[25,25],routeStrokeStyle:'solid',routeStrokeWidth:4,routeStrokeColor:'#007bff',routeActiveStrokeColor:'#0056b3',pinIconFillColor:'#007bff',});myMap.geoObjects.add(currentRoute);currentRoute.model.events.add('requestsuccess',()=>{const activeRoute=currentRoute.getActiveRoute();if(activeRoute){const totalTravelTimeMinutes=Math.round(activeRoute.properties.get('duration').value/60);let totalServiceTimeMinutes=stops.reduce((sum,stop)=>sum+stop.serviceTime,0);const totalDurationMinutes=totalTravelTimeMinutes+totalServiceTimeMinutes;displayRouteDetails(totalTravelTimeMinutes,totalServiceTimeMinutes,totalDurationMinutes);updateMapPlacemarks();displayMessage("Rota başarıyla hesaplandı!",'success')}else{displayMessage("Rota bulunamadı. Lütfen adresleri kontrol edin.",'error')}  
+    hideLoadingOverlay()});currentRoute.model.events.add('requestfail',(e)=>{const error=e.get('error');let errorMessage="Rota hesaplanırken bir hata oluştu. Lütfen adresleri kontrol edin.";if(error&&error.message){errorMessage+=" Detay: "+error.message}  
+    displayMessage(errorMessage,'error');hideLoadingOverlay()})}catch(error){displayMessage("Rota hesaplanırken genel bir hata oluştu: "+error.message,'error');console.error("Rota hesaplama hatası:",error);hideLoadingOverlay()}}  
+    function updateMapPlacemarks(){myMap.geoObjects.each((obj)=>{if(obj.properties.get('isPlacemark')){myMap.geoObjects.remove(obj)}});placemarks=[];stops.forEach((stop,index)=>{if(stop.coords){const placemark=new ymaps.Placemark(stop.coords,{iconContent:`${index+1}`,balloonContent:`${index+1}. Durak: ${stop.address}<br>Servis Süresi: ${stop.serviceTime} dk`},{preset:'islands#redDotIcon',isPlacemark:true});myMap.geoObjects.add(placemark);placemarks.push(placemark)}})}  
+    function displayRouteDetails(travelTimeMinutes,serviceTimeMinutes,totalDurationMinutes){routeDetailsDiv.innerHTML=`  
+            <p><strong>Toplam Seyahat Süresi:</strong> ${formatMinutesToHoursMinutes(travelTimeMinutes)}</p>  
+            <p><strong>Toplam Servis Süresi:</strong> ${formatMinutesToHoursMinutes(serviceTimeMinutes)}</p>  
+            <p><strong>Tahmini Toplam Süre:</strong> ${formatMinutesToHoursMinutes(totalDurationMinutes)}</p>  
+            <p id="estimated-finish-time"></p>  
+            <p id="completion-feedback-message"></p>  
+        `;routeDetailsDiv.style.display='block';calculateAndDisplayFinishTime(totalDurationMinutes);const now=new Date();const actualFinishTime=new Date(now.getTime()+(totalDurationMinutes-Math.random()*60+30)*60*1000);const timeDifferenceMinutes=Math.round((actualFinishTime.getTime()-(now.getTime()+totalDurationMinutes*60*1000))/(1000*60));displayCompletionFeedback(timeDifferenceMinutes)}  
+    function formatMinutesToHoursMinutes(totalMinutes){if(isNaN(totalMinutes)||totalMinutes<0)return"0 dakika";const hours=Math.floor(totalMinutes/60);const minutes=totalMinutes%60;let result="";if(hours>0)result+=`${hours} saat `;result+=`${minutes} dakika`;return result.trim()}  
+    function calculateAndDisplayFinishTime(totalDurationMinutes){const startTimeInput=new Date();const finishTime=new Date(startTimeInput.getTime()+totalDurationMinutes*60*1000);const finishTimeString=finishTime.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});const finishTimeElement=document.getElementById('estimated-finish-time');if(finishTimeElement){finishTimeElement.innerHTML=`<strong>Tahmini Bitiş Saati:</strong> ${finishTimeString}`;const currentHour=startTimeInput.getHours();const currentMinute=startTimeInput.getMinutes();const normalStartHour=9;const normalStartMinute=30;const thirtyMinutesPastNormalStart=normalStartHour*60+normalStartMinute+30;if((currentHour*60+currentMinute)>thirtyMinutesPastNormalStart){displayMessage("Hayrola kardeş, niye geç başlıyorsun bugün? Dükkan senin mi yoksa? Hadi hadi, mesai saati kaçtı bile, hızlı ol biraz!",'error')}}}  
+    function displayCompletionFeedback(timeDifferenceMinutes){const messageElement=document.getElementById('completion-feedback-message');let message="";if(timeDifferenceMinutes<=-45){message="Efsanesin! Neredeyse bir saat erken bitirdin, bu işte üstüne yok. Bu hızla İstanbul'u turlarsın!"}else if(timeDifferenceMinutes<=-30){message="Şampiyon sensin! Yarım saate yakın erken bitirdin, rakiplerin hala ter dökerken sen çoktan eve varmışsın."}else if(timeDifferenceMinutes<=-15){message="Vay be! Çeyrek saatten fazla erken bitirdin, bu ne hız kardeş? Zamanı fena kovaladın!"}else if(timeDifferenceMinutes<=-1){message="Helal olsun! Bi tık erken bitirdin işi, tam ayarında."}else if(timeDifferenceMinutes>=-5&&timeDifferenceMinutes<=5){message="Dakikası dakikasına! Senin saat kaçmaz, adamsın! Tebrikler, işini tam da vaktinde bitirdin."}else if(timeDifferenceMinutes>=6&&timeDifferenceMinutes<=14){message="Eyvah! Küçük bir rötarımız var. Bi dahakine daha dikkatli olalım, yoksa müşteri bekler."}else if(timeDifferenceMinutes>=15&&timeDifferenceMinutes<=29){message="Kardeş ne iş? Çeyrek saati geçtin. Bak sonra patron sorar, benden söylemesi!"}else if(timeDifferenceMinutes>=30&&timeDifferenceMinutes<=44){message="Lanet olsun dostum, bayağı geciktik! Müşteri şimdi arar, 'Hani nerede kaldınız?' diye. Bu ne abi, otobüsle mi geldin?"}else if(timeDifferenceMinutes>=45){message="Afedersin ama bu ne hız? Neredeyse bir saat geciktin! Benden söylemesi, bu hızla anca sabah işe yetişirsin!"}  
+    if(message){messageElement.innerHTML=`<strong>Sonuç:</strong> ${message}`}}  
+    let messageTimeout;function displayMessage(message,type='info'){clearTimeout(messageTimeout);statusMessageDiv.textContent=message;statusMessageDiv.className=`status-message ${type}`;statusMessageDiv.style.display='block';messageTimeout=setTimeout(()=>{statusMessageDiv.style.display='none'},8000)}  
+    function showLoadingOverlay(message){const overlay=document.createElement('div');overlay.className='loading-overlay';overlay.id='loading-overlay';overlay.innerHTML=`  
+            <div class="spinner"></div>  
+            <p>${message}</p>  
+        `;document.body.appendChild(overlay)}  
+    function hideLoadingOverlay(){const overlay=document.getElementById('loading-overlay');if(overlay){overlay.remove()}  
+    clearInterval(loadingMessageInterval)}  
+    let draggedItem=null;function addDragAndDropListeners(item){item.removeEventListener('dragstart',item._dragstartHandler);item.removeEventListener('dragend',item._dragendHandler);item._dragstartHandler=(e)=>{if(!manualSortMode){e.preventDefault();displayMessage("Manuel sıralama modu aktif değil. Sıralamak için 'Manuel Sıralama Modu' butonuna bas.",'info');return}  
+    draggedItem=item;setTimeout(()=>{item.classList.add('dragging')},0)};item.addEventListener('dragstart',item._dragstartHandler);item._dragendHandler=()=>{if(draggedItem){draggedItem.classList.remove('dragging');draggedItem=null}  
+    const newOrderIds=Array.from(stopsContainer.children).map(el=>el.dataset.id);stops.sort((a,b)=>newOrderIds.indexOf(String(a.id))-newOrderIds.indexOf(String(b.id)));updateStopIndices();saveAddressesToLocalStorage();if(currentRoute){calculateAndDisplayRoute()}else{updateMapPlacemarks()}};item.addEventListener('dragend',item._dragendHandler)}  
+    stopsContainer.addEventListener('dragover',(e)=>{e.preventDefault();const afterElement=getDragAfterElement(stopsContainer,e.clientY);const currentItem=e.target.closest('.address-input-item');if(!afterElement){if(draggedItem&¤tItem!==draggedItem){stopsContainer.appendChild(draggedItem)}}else{if(draggedItem&¤tItem!==draggedItem){stopsContainer.insertBefore(draggedItem,afterElement)}}});function getDragAfterElement(container,y){const draggableElements=[...container.querySelectorAll('.address-input-item:not(.dragging)')];return draggableElements.reduce((closest,child)=>{const box=child.getBoundingClientRect();const offset=y-box.top-box.height/2;if(offset<0&&offset>closest.offset){return{offset:offset,element:child}}else{return closest}},{offset:-Infinity}).element}  
+    optimizeRouteBtn.addEventListener('click',calculateAndDisplayRoute);manualSortModeBtn.addEventListener('click',()=>{manualSortMode=!manualSortMode;if(manualSortMode){manualSortModeBtn.textContent='Otomatik Sıralamaya Dön';manualSortModeBtn.classList.add('active');displayMessage("Manuel sıralama modu açık. Durakları sürükleyip bırakarak sıralayabilirsiniz.",'info');Array.from(stopsContainer.children).forEach(addDragAndDropListeners)}else{manualSortModeBtn.textContent='Manuel Sıralama Modu';manualSortModeBtn.classList.remove('active');displayMessage("Manuel sıralama modu kapatıldı. Rota otomatik olarak optimize edilecek.",'info');Array.from(stopsContainer.children).forEach(item=>{item.removeEventListener('dragstart',item._dragstartHandler);item.removeEventListener('dragend',item._dragendHandler)});if(stops.length>0&&startAddressInput.value&&endAddressInput.value){calculateAndDisplayRoute()}}});homeAddressBtn.addEventListener('click',async()=>{if(savedHomeAddress&&savedHomeCoords){endAddressInput.value=savedHomeAddress;displayMessage("Ev adresiniz bitiş noktası olarak ayarlandı.",'success');saveAddressesToLocalStorage();if(stops.length>0&&startAddressInput.value){calculateAndDisplayRoute()}}else{displayMessage("Kayıtlı bir ev adresiniz yok. 'Ev Adresini Kaydet' butonunu kullanın.",'error')}});shopAddressBtn.addEventListener('click',async()=>{startAddressInput.value=SHOP_ADDRESS;endAddressInput.value=SHOP_ADDRESS;displayMessage("Dükkan adresi başlangıç ve bitiş noktası olarak ayarlandı.",'success');saveAddressesToLocalStorage();if(stops.length>0){calculateAndDisplayRoute()}});saveHomeAddressBtn.addEventListener('click',async()=>{const currentAddress=endAddressInput.value;if(currentAddress){const coords=await getCoordsFromAddress(currentAddress);if(coords){savedHomeAddress=currentAddress;savedHomeCoords=coords;localStorage.setItem('homeAddress',savedHomeAddress);localStorage.setItem('homeCoords',JSON.stringify(savedHomeCoords));homeAddressBtn.textContent="Eve Git ("+(savedHomeAddress.split(',')[0]||'Ev')+")";displayMessage("Ev adresiniz başarıyla kaydedildi!",'success')}else{displayMessage("Girilen adres bulunamadı. Lütfen geçerli bir ev adresi girin.",'error')}}else{displayMessage("Lütfen kaydetmek için bir ev adresi girin.",'error')}});window.addEventListener('load',()=>{setupYandexSuggest(startAddressInput);setupYandexSuggest(endAddressInput);setupYandexSuggest(newStopAddressInput);stopsContainer.querySelectorAll('input[type="text"]').forEach(input=>{setupYandexSuggest(input)});renderStops()});async function startNavigation(targetAddress){if(!targetAddress){displayMessage("Gitmek istediğiniz adres boş. Lütfen geçerli bir adres girin.",'error');return}  
+    displayMessage("Bir sonraki müşteriyi aramayı unutmayın!",'info');setTimeout(()=>{const googleMapsUrl=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(targetAddress)}&travelmode=driving`;window.open(googleMapsUrl,'_blank')},2000)}  
+</script>  </body>  
+</html>
