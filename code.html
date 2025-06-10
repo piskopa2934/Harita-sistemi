@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rota Planlama Uygulaması</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR&apikey=5d79537c-6e7b-4e79-aa99-3670cd243ed2" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border-radius: 12px; padding: 25px; margin: 20px; width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px;
+        }
+        .header {
+            text-align: center; border-bottom: 2px solid #e0e0e0; padding-bottom: 15px; margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #2c3e50; margin: 0; font-size: 2em;
+        }
+        .status-message {
+            margin-top: 15px; padding: 10px 15px; border-radius: 8px; background-color: #e7f3ff; color: #31708f; border: 1px solid #bce8f1; text-align: center; font-weight: 500; display: none;
+        }
+        .status-message.error {
+            background-color: #f2dede; color: #a94442; border-color: #ebccd1;
+        }
+        .status-message.success {
+            background-color: #dff0d8; color: #3c763d; border-color: #d6e9c6;
+        }
+        .ai-status {
+            margin-top: 10px; font-size: 0.9em; color: #666; text-align: center;
+        }
+        .address-inputs .input-group {
+            margin-bottom: 15px;
+        }
+        .address-inputs label {
+            display: block; margin-bottom: 8px; font-weight: 600; color: #555;
+        }
+        .address-inputs input[type="text"] {
+            width: calc(100% - 22px); padding: 12px; border: 1px solid #cccccc; border-radius: 6px; font-size: 1em; transition: border-color 0.3s ease;
+        }
+        .address-inputs input[type="text"]:focus {
+            border-color: #007bff; outline: none; box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+        .address-input-item {
+            display: flex; align-items: center; margin-bottom: 15px; gap: 10px; background-color: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px;
+        }
+        .address-input-item.dragging {
+            opacity: 0.7; border: 2px dashed #007bff;
+        }
+        .address-input-item .drag-handle {
+            cursor: grab; font-size: 1.5em; color: #888; padding: 0 5px;
+        }
+        .address-input-item .stop-index {
+            font-weight: bold; color: #007bff; margin-right: 5px; width: 20px; text-align: center;
+        }
+        .address-input-item input[type="text"] {
+            flex-grow: 1; margin-right: 10px;
+        }
+        .address-input-item .service-time-input {
+            width: 80px; padding: 8px; border: 1px solid #cccccc; border-radius: 6px; font-size: 0.9em;
+        }
+        .address-input-item .service-type-select {
+            padding: 8px; border: 1px solid #cccccc; border-radius: 6px; font-size: 0.9em; background-color: #fff;
+        }
+        .address-input-item .remove-stop-btn {
+            background-color: #dc3545; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 1.2em; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: background-color 0.2s ease;
+        }
+        .address-input-item .remove-stop-btn:hover {
+            background-color: #c82333;
+        }
+        .action-buttons {
+            display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; justify-content: center;
+        }
+        .action-btn {
+            padding: 12px 25px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease; white-space: nowrap;
+        }
+        .action-btn.primary {
+            background-color: #007bff; color: white;
+        }
+        .action-btn.primary:hover {
+            background-color: #0056b3; transform: translateY(-2px);
+        }
+        .action-btn.secondary {
+            background-color: #6c757d; color: white;
+        }
+        .action-btn.secondary:hover {
+            background-color: #5a6268; transform: translateY(-2px);
+        }
+        .action-btn.tertiary {
+            background-color: #f0f0f0; color: #333; border: 1px solid #ccc;
+        }
+        .action-btn.tertiary:hover {
+            background-color: #e0e0e0; transform: translateY(-2px);
+        }
+        .region-selection select {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; height: 100px;
+        }
+        .route-details {
+            background-color: #e9f5ef; border: 1px solid #c3e6cb; border-radius: 8px; padding: 15px; margin-top: 20px; font-size: 1.1em; color: #155724; display: none;
+        }
+        .route-details p {
+            margin: 5px 0;
+        }
+        .map-container {
+            width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0; margin-top: 20px;
+        }
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 1.5em; z-index: 9999; text-align: center;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px; padding: 15px;
+            }
+            .action-buttons {
+                flex-direction: column; gap: 10px;
+            }
+            .action-btn {
+                width: 100%; padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>Servis Rota Planlayıcı</h1><div id="status-message" class="status-message"></div><div id="ai-status" class="ai-status"></div></div>
+        <div class="address-inputs">
+            <div class="input-group"><label for="start-address">Başlangıç Adresi:</label><input type="text" id="start-address" placeholder="Başlangıç adresini girin..." autocomplete="off"></div>
+            <div id="stops-container"></div>
+            <button id="add-stop-btn" class="action-btn">Durak Ekle</button>
+            <div class="input-group"><label for="end-address">Bitiş Adresi:</label><input type="text" id="end-address" placeholder="Bitiş adresini girin..." autocomplete="off"></div>
+        </div>
+        <div class="action-buttons">
+            <button id="optimize-route-btn" class="action-btn primary">Rotayı Hesapla</button><button id="manual-sort-mode-btn" class="action-btn secondary">Manuel Sıralama Modu</button><button id="home-address-btn" class="action-btn tertiary">Eve Git</button><button id="shop-address-btn" class="action-btn tertiary">İşe (Dükkana) Git</button><button id="save-home-address-btn" class="action-btn tertiary">Ev Adresini Kaydet</button>
+            <div class="region-selection"><label>Servis Bölgeleri:</label><select id="region-select" multiple><option value="Kartal">Kartal</option><option value="Maltepe">Maltepe</option><option value="Ataşehir">Ataşehir</option><option value="Kadıköy">Kadıköy</option><option value="Ümraniye">Ümraniye</option><option value="Sancaktepe">Sancaktepe</option><option value="Pendik">Pendik</option><option value="Tuzla">Tuzla</option></select></div>
+        </div>
+        <div id="route-details" class="route-details"></div>
+        <div id="map" class="map-container"></div>
+    </div>
+    <script>
+        ymaps.ready(init);
+        let myMap, placemarks = [], currentRoute, stops = [], manualSortMode = !1;
+        const SHOP_ADDRESS = "Atalar, Ceylan Sk. no:5, 34862 Kartal/İstanbul, Türkiye", SHOP_COORDS = [40.900451, 29.213233];
+        let savedHomeAddress = localStorage.getItem("homeAddress") || "", savedHomeCoords = localStorage.getItem("homeCoords") ? JSON.parse(localStorage.getItem("homeCoords")) : null;
+        const SERVICE_TYPES = {Montaj: 25, Arıza: 40, Teslimat: 15, Keşif: 30, Diğer: 25};
+        const LOADING_MESSAGES = ["Bekle kardeş, rotayı hesaplıyorum... Yolların dilinden anlayan sensörlerim çalışıyor.", "Bekle kardeş, rotayı hesaplıyorum... Trafik canavarına meydan okuyoruz, az kaldı!", "Bekle kardeş, rotayı hesaplıyorum... En kısa yoldan mı gidelim, en hızlısından mı, karar veriyoruz!", "Bekle kardeş, rotayı hesaplıyorum... Yandex'le aramızda küçük bir pazarlık dönüyor, hangi yolu versin diye.", "Bekle kardeş, rotayı hesaplıyorum... Kahveni tazeledin mi? Çünkü bu rotayla işler tıkırında gidecek!"];
+        let loadingMessageInterval;
+        const startAddressInput = document.getElementById("start-address"), endAddressInput = document.getElementById("end-address"), stopsContainer = document.getElementById("stops-container"), addStopBtn = document.getElementById("add-stop-btn"), optimizeRouteBtn = document.getElementById("optimize-route-btn"), manualSortModeBtn = document.getElementById("manual-sort-mode-btn"), homeAddressBtn = document.getElementById("home-address-btn"), shopAddressBtn = document.getElementById("shop-address-btn"), saveHomeAddressBtn = document.getElementById("save-home-address-btn"), routeDetailsDiv = document.getElementById("route-details"), statusMessageDiv = document.getElementById("status-message"), regionSelect = document.getElementById("region-select");
+        function init() {myMap = new ymaps.Map("map", {center: SHOP_COORDS, zoom: 10, controls: ["zoomControl", "fullscreenControl"]}, {searchControlProvider: "yandex#search"}), loadAddressesFromLocalStorage(), updateMapPlacemarks()}
+        function saveAddressesToLocalStorage() {localStorage.setItem("startAddress", startAddressInput.value), localStorage.setItem("endAddress", endAddressInput.value), localStorage.setItem("stops", JSON.stringify(stops.map(e => ({address: e.address, coords: e.coords, serviceTime: e.serviceTime, serviceType: e.serviceType})))); const e = Array.from(regionSelect.selectedOptions).map(e => e.value); localStorage.setItem("selectedRegions", JSON.stringify(e))}
+        function loadAddressesFromLocalStorage() {startAddressInput.value = localStorage.getItem("startAddress") || SHOP_ADDRESS, endAddressInput.value = localStorage.getItem("endAddress") || SHOP_ADDRESS; const e = JSON.parse(localStorage.getItem("stops")); e && e.length > 0 ? (stops = [], e.forEach(e => {addStopInput(e.address, e.serviceTime, e.serviceType, e.coords)})) : addStopInput("", SERVICE_TYPES.Diğer, "Diğer"), savedHomeAddress && (document.getElementById("home-address-btn").textContent = "Eve Git (" + (savedHomeAddress.split(",")[0] || "Ev") + ")"); const t = JSON.parse(localStorage.getItem("selectedRegions")); t && Array.from(regionSelect.options).forEach(e => {e.selected = t.includes(e.value)})}
+        function addStopInput(e = "", t = SERVICE_TYPES.Diğer, o = "Diğer", n = null) {const a = Date.now() + Math.random(), d = document.createElement("div"); d.className = "address-input-item", d.dataset.id = a, d.draggable = !0; const s = document.createElement("span"); s.className = "stop-index"; const i = document.createElement("span"); i.className = "drag-handle", i.innerHTML = "\u2630"; const r = document.createElement("input"); r.type = "text", r.placeholder = "Durak adresini girin...", r.value = e, r.autocomplete = "off", r.dataset.stopId = a; const c = document.createElement("input"); c.type = "number", c.className = "service-time-input", c.placeholder = "Dk", c.min = "1", c.value = t; const l = document.createElement("select"); l.className = "service-type-select"; for (const m in SERVICE_TYPES) {const p = document.createElement("option"); p.value = m, p.textContent = m, l.appendChild(p)} l.value = o; const u = document.createElement("button"); u.className = "remove-stop-btn", u.innerHTML = "\xd7"; const g = document.createElement("button"); g.className = "action-btn tertiary navigate-to-stop-btn", g.textContent = "Git", d.appendChild(i), d.appendChild(s), d.appendChild(r), d.appendChild(l), d.appendChild(c), d.appendChild(g), d.appendChild(u), stopsContainer.appendChild(d), u.addEventListener("click", () => removeStop(a)), r.addEventListener("input", e => updateStopAddress(a, e.target.value)), r.addEventListener("focus", e => setupYandexSuggest(e.target)), c.addEventListener("input", e => updateStopServiceTime(a, parseInt(e.target.value) || 0)), l.addEventListener("change", e => updateStopServiceType(a, e.target.value)), g.addEventListener("click", () => startNavigation(r.value)), stops.push({id: a, address: e, coords: n, serviceTime: t, serviceType: o, element: d}), updateStopIndices(), saveAddressesToLocalStorage()}
+        function removeStop(e) {stops = stops.filter(t => t.id !== e), renderStops(), updateMapPlacemarks(), saveAddressesToLocalStorage()}
+        function updateStopAddress(e, t) {const o = stops.find(t => t.id === e); o && (o.address = t, o.coords = null, saveAddressesToLocalStorage())}
+        function updateStopServiceTime(e, t) {const o = stops.find(t => t.id === e); o && (o.serviceTime = t, saveAddressesToLocalStorage())}
+        function updateStopServiceType(e, t) {const o = stops.find(t => t.id === e); o && (o.serviceType = t, o.serviceTime = SERVICE_TYPES[t] || SERVICE_TYPES.Diğer, o.element.querySelector(".service-time-input").value = o.serviceTime, saveAddressesToLocalStorage())}
+        function updateStopIndices() {stops.forEach((e, t) => {e.element.querySelector(".stop-index").textContent = `${t + 1}.`})}
+        function renderStops() {stopsContainer.innerHTML = "", stops.forEach(e => {stopsContainer.appendChild(e.element), addDragAndDropListeners(e.element)}), updateStopIndices()}
+        function setupYandexSuggest(e) {const t = new ymaps.SuggestView(e, {provider: {suggest: (e, t) => {const o = Array.from(regionSelect.selectedOptions).map(e => e.value); let n = e; return o.length > 0 && (n = `${e}, ${o.join(" ")}`), ymaps.suggest(n, t)}}}); t.events.add("select", async t => {const o = t.get("item").value; e.value = o; const n = e.dataset.stopId, a = await getCoordsFromAddress(o); if (a) {const e = stops.find(e => e.id == n); e && (e.address = o, e.coords = a, saveAddressesToLocalStorage())} else {displayMessage("Adres bulunamad\u0131: " + o, "error"); const e = stops.find(e => e.id == n); e && (e.coords = null)}})}
+        async function getCoordsFromAddress(e) {try {const t = await ymaps.geocode(e), o = t.geoObjects.get(0); return o ? o.geometry.getCoordinates() : null} catch (t) {return console.error("Co\u011frafi kodlama hatas\u0131:", t), null}}
+        async function calculateAndDisplayRoute() {showLoadingOverlay("Bekle kardeş, rotayı hesaplıyorum..."), clearInterval(loadingMessageInterval), loadingMessageInterval = setInterval(() => {const e = document.querySelector(".loading-overlay p"); e && (e.textContent = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)])}, 3e3); try {const e = await getCoordsFromAddress(startAddressInput.value), t = await getCoordsFromAddress(endAddressInput.value); if (!e) return displayMessage("Ba\u015flang\u0131\u00e7 adresi bulunamad\u0131. L\u00fctfen kontrol edin.", "error"), void hideLoadingOverlay(); if (!t) return displayMessage("Biti\u015f adresi bulunamad\u0131. L\u00fctfen kontrol edin.", "error"), void hideLoadingOverlay(); const o = []; for (const n of stops) if (n.address) {let e = n.coords; e || (e = await getCoordsFromAddress(n.address)) && (n.coords = e, saveAddressesToLocalStorage()), e ? o.push(e) : displayMessage(`Durak adresi bulunamad\u0131: ${n.address}. Rota bu durak olmadan hesaplanacakt\u0131r.`, "error")} const a = [e, ...o, t]; if (a.length < 2) return displayMessage("Rota hesaplamak i\u00e7in en az iki nokta (ba\u015flang\u0131\u00e7/biti\u015f) gerekli.", "error"), void hideLoadingOverlay(); currentRoute && myMap.geoObjects.remove(currentRoute), currentRoute = new ymaps.multiRouter.MultiRoute({referencePoints: a, params: {routingMode: "auto", avoidTrafficJams: !0, multiRoute: !0}}, {boundsAutoApply: !0, wayPointFinishIconLayout: "default#image", wayPointFinishIconImageHref: "https://cdn-icons-png.flaticon.com/512/1155/1155981.png", wayPointFinishIconImageSize: [30, 30], wayPointStartIconLayout: "default#image", wayPointStartIconImageHref: "https://cdn-icons-png.flaticon.com/512/1155/1155979.png", wayPointStartIconImageSize: [30, 30], wayPointIconLayout: "default#image", wayPointIconImageHref: "https://cdn-icons-png.flaticon.com/512/1155/1155980.png", wayPointIconImageSize: [25, 25], routeStrokeStyle: "solid", routeStrokeWidth: 4, routeStrokeColor: "#007bff", routeActiveStrokeColor: "#0056b3", pinIconFillColor: "#007bff"}), myMap.geoObjects.add(currentRoute), currentRoute.model.events.add("requestsuccess", () => {const e = currentRoute.getActiveRoute(); e ? (displayRouteDetails(Math.round(e.properties.get("duration").value / 60), stops.reduce((e, t) => e + t.serviceTime, 0), Math.round(e.properties.get("duration").value / 60) + stops.reduce((e, t) => e + t.serviceTime, 0)), updateMapPlacemarks(), displayMessage("Rota ba\u015far\u0131yla hesapland\u0131!", "success")) : displayMessage("Rota bulunamad\u0131. L\u00fctfen adresleri kontrol edin.", "error"), hideLoadingOverlay()}), currentRoute.model.events.add("requestfail", e => {const t = e.get("error"); let o = "Rota hesaplan\u0131rken bir hata olu\u015ftu. L\u00fctfen adresleri kontrol edin."; t && t.message && (o += " Detay: " + t.message), displayMessage(o, "error"), hideLoadingOverlay()})} catch (s) {displayMessage("Rota hesaplan\u0131rken genel bir hata olu\u015ftu: " + s.message, "error"), console.error("Rota hesaplama hatas\u0131:", s), hideLoadingOverlay()}}
+        function updateMapPlacemarks() {myMap.geoObjects.each(e => {e.properties.get("isPlacemark") && myMap.geoObjects.remove(e)}), placemarks = [], stops.forEach((e, t) => {if (e.coords) {const o = new ymaps.Placemark(e.coords, {iconContent: `${t + 1}`, balloonContent: `${t + 1}. Durak: ${e.address}<br>Servis S\u00fcresi: ${e.serviceTime} dk`}, {preset: "islands#redDotIcon", isPlacemark: !0}); myMap.geoObjects.add(o), placemarks.push(o)}})}
+        function displayRouteDetails(e, t, o) {routeDetailsDiv.innerHTML = `<p><strong>Toplam Seyahat S\u00fcresi:</strong> ${formatMinutesToHoursMinutes(e)}</p>\n            <p><strong>Toplam Servis S\u00fcresi:</strong> ${formatMinutesToHoursMinutes(t)}</p>\n            <p><strong>Tahmini Toplam S\u00fcre:</strong> ${formatMinutesToHoursMinutes(o)}</p>\n            <p id="estimated-finish-time"></p>\n            <p id="completion-feedback-message"></p>`, routeDetailsDiv.style.display = "block", calculateAndDisplayFinishTime(o); const n = new Date, a = new Date(n.getTime() + (o - 60 * Math.random() + 30) * 6e4); displayCompletionFeedback(Math.round((a.getTime() - (n.getTime() + 6e4 * o)) / 6e4))}
+        function formatMinutesToHoursMinutes(e) {if (isNaN(e) || e < 0) return "0 dakika"; const t = Math.floor(e / 60), o = e % 60; let n = ""; return t > 0 && (n += `${t} saat `), n += `${o} dakika`, n.trim()}
+        function calculateAndDisplayFinishTime(e) {const t = new Date, o = new Date(t.getTime() + 6e4 * e), n = o.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"}), a = document.getElementById("estimated-finish-time"); a && (a.innerHTML = `<strong>Tahmini Biti\u015f Saati:</strong> ${n}`, t.getHours() * 60 + t.getMinutes() > 600 && displayMessage("Hayrola karde\u015f, niye ge\u00e7 ba\u015fl\u0131yorsun bug\u00fcn? D\u00fckkan senin mi yoksa? Hadi hadi, mesai saati ka\u00e7t\u0131 bile, h\u0131zl\u0131 ol biraz!", "error"))}
+        function displayCompletionFeedback(e) {const t = document.getElementById("completion-feedback-message"); let o = ""; e <= -45 ? o = "Efsanesin! Neredeyse bir saat erken bitirdin, bu i\u015fte \u00fcst\u00fcne yok. Bu h\u0131zla \u0130stanbul'u turlars\u0131n!" : e <= -30 ? o = "\u015eampiyon sensin! Yar\u0131m saate yak\u0131n erken bitirdin, rakiplerin hala ter d\u00f6kerken sen \u00e7oktan eve varm\u0131\u015fs\u0131n." : e <= -15 ? o = "Vay be! \u00c7eyrek saatten fazla erken bitirdin, bu ne h\u0131z karde\u015f? Zaman\u0131 fena kovalad\u0131n!" : e <= -1 ? o = "Helal olsun! Bi t\u0131k erken bitirdin i\u015fi, tam ayar\u0131nda." : e >= -5 && e <= 5 ? o = "Dakikas\u0131 dakikas\u0131na! Senin saat ka\u00e7maz, adams\u0131n! Tebrikler, i\u015fini tam da vaktinde bitirdin." : e >= 6 && e <= 14 ? o = "Eyvah! K\u00fc\u00e7\u00fck bir r\u00f6tar\u0131m\u0131z var. Bi dahakine daha dikkatli olal\u0131m, yoksa m\u00fc\u015fteri bekler." : e >= 15 && e <= 29 ? o = "Karde\u015f ne i\u015f? \u00c7eyrek saati ge\u00e7tin. Bak sonra patron sorar, benden s\u00f6ylemesi!" : e >= 30 && e <= 44 ? o = "Lanet olsun dostum, baya\u011f\u0131 geciktik! M\u00fc\u015fteri \u015fimdi arar, 'Hani nerede kald\u0131n\u0131z?' diye. Bu ne abi, otob\u00fcsle mi geldin?" : e >= 45 && (o = "Afedersin ama bu ne h\u0131z? Neredeyse bir saat geciktin! Benden s\u00f6ylemesi, bu h\u0131zla anca sabah i\u015fe yeti\u015firsin!"), o && (t.innerHTML = `<strong>Sonu\u00e7:</strong> ${o}`)}
+        let messageTimeout;
+        function displayMessage(e, t = "info") {clearTimeout(messageTimeout), statusMessageDiv.textContent = e, statusMessageDiv.className = `status-message ${t}`, statusMessageDiv.style.display = "block", messageTimeout = setTimeout(() => {statusMessageDiv.style.display = "none"}, 8e3)}
+        function showLoadingOverlay(e) {const t = document.createElement("div"); t.className = "loading-overlay", t.id = "loading-overlay", t.innerHTML = `\n            <div class="spinner"></div>\n            <p>${e}</p>\n        `, document.body.appendChild(t)}
+        function hideLoadingOverlay() {const e = document.getElementById("loading-overlay"); e && e.remove(), clearInterval(loadingMessageInterval)}
+        let draggedItem = null;
+        function addDragAndDropListeners(e) {e.removeEventListener("dragstart", e._dragstartHandler), e.removeEventListener("dragend", e._dragendHandler), e._dragstartHandler = t => {manualSortMode ? (draggedItem = e, setTimeout(() => {e.classList.add("dragging")}, 0)) : (t.preventDefault(), displayMessage("Manuel s\u0131ralama modu aktif de\u011fil. S\u0131ralamak i\u00e7in 'Manuel S\u0131ralama Modu' butonuna bas.", "info"))}, e.addEventListener("dragstart", e._dragstartHandler), e._dragendHandler = () => {if (draggedItem && (draggedItem.classList.remove("dragging"), draggedItem = null), stops.sort((e, t) => Array.from(stopsContainer.children).map(e => e.dataset.id).indexOf(e.id) - Array.from(stopsContainer.children).map(e => e.dataset.id).indexOf(t.id)), updateStopIndices(), saveAddressesToLocalStorage(), currentRoute) calculateAndDisplayRoute(); else updateMapPlacemarks()}, e.addEventListener("dragend", e._dragendHandler)}
+        stopsContainer.addEventListener("dragover", e => {e.preventDefault(); const t = getDragAfterElement(stopsContainer, e.clientY), o = e.target.closest(".address-input-item"); t ? draggedItem && o !== draggedItem && stopsContainer.insertBefore(draggedItem, t) : draggedItem && o !== draggedItem && stopsContainer.appendChild(draggedItem)});
+        function getDragAfterElement(e, t) {const o = [...e.querySelectorAll(".address-input-item:not(.dragging)")]; return o.reduce((e, n) => {const a = n.getBoundingClientRect(), d = t - a.top - a.height / 2; return d < 0 && d > e.offset ? {offset: d, element: n} : e}, {offset: -1 / 0}).element}
+        addStopBtn.addEventListener("click", () => addStopInput("", SERVICE_TYPES.Diğer, "Diğer")), optimizeRouteBtn.addEventListener("click", calculateAndDisplayRoute), manualSortModeBtn.addEventListener("click", () => {manualSortMode = !manualSortMode, manualSortMode ? (manualSortModeBtn.textContent = "Otomatik S\u0131ralamaya D\u00f6n", manualSortModeBtn.classList.add("active"), displayMessage("Manuel s\u0131ralama modu a\u00e7\u0131k. Duraklar\u0131 s\u00fcr\u00fckleyip b\u0131rakarak s\u0131ralayabilirsiniz.", "info"), Array.from(stopsContainer.children).forEach(addDragAndDropListeners)) : (manualSortModeBtn.textContent = "Manuel S\u0131ralama Modu", manualSortModeBtn.classList.remove("active"), displayMessage("Manuel s\u0131ralama modu kapat\u0131ld\u0131. Rota otomatik olarak optimize edilecek.", "info"), Array.from(stopsContainer.children).forEach(e => {e.removeEventListener("dragstart", e._dragstartHandler), e.removeEventListener("dragend", e._dragendHandler)}), calculateAndDisplayRoute())}), homeAddressBtn.addEventListener("click", async () => {savedHomeAddress && savedHomeCoords ? (endAddressInput.value = savedHomeAddress, displayMessage("Ev adresiniz biti\u015f noktas\u0131 olarak ayarland\u0131.", "success"), saveAddressesToLocalStorage(), calculateAndDisplayRoute()) : displayMessage("Kay\u0131tl\u0131 bir ev adresiniz yok. 'Ev Adresini Kaydet' butonunu kullan\u0131n.", "error")}), shopAddressBtn.addEventListener("click", async () => {startAddressInput.value = SHOP_ADDRESS, endAddressInput.value = SHOP_ADDRESS, displayMessage("D\u00fckkan adresi ba\u015flang\u0131\u00e7 ve biti\u015f noktas\u0131 olarak ayarland\u0131.", "success"), saveAddressesToLocalStorage(), calculateAndDisplayRoute()}), saveHomeAddressBtn.addEventListener("click", async () => {const e = endAddressInput.value; e ? await getCoordsFromAddress(e) ? (savedHomeAddress = e, savedHomeCoords = await getCoordsFromAddress(e), localStorage.setItem("homeAddress", savedHomeAddress), localStorage.setItem("homeCoords", JSON.stringify(savedHomeCoords)), homeAddressBtn.textContent = "Eve Git (" + (savedHomeAddress.split(",")[0] || "Ev") + ")", displayMessage("Ev adresiniz ba\u015far\u0131yla kaydedildi!", "success")) : displayMessage("Girilen adres bulunamad\u0131. L\u00fctfen ge\u00e7erli bir ev adresi girin.", "error") : displayMessage("L\u00fctfen kaydetmek i\u00e7in bir ev adresi girin.", "error")}), window.addEventListener("load", () => {setupYandexSuggest(startAddressInput), setupYandexSuggest(endAddressInput), stopsContainer.querySelectorAll('input[type="text"]').forEach(e => {setupYandexSuggest(e)}), renderStops()});
+        async function startNavigation(e) {e ? (displayMessage("Bir sonraki m\u00fc\u015fteriyi aramay\u0131 unutmay\u0131n!", "info"), setTimeout(() => {const t = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e)}&travelmode=driving`; window.open(t, "_blank")}, 2e3)) : displayMessage("Gitmek istedi\u011finiz adres bo\u015f. L\u00fctfen ge\u00e7erli bir adres girin.", "error")}
+    </script>
+</body>
+</html>
